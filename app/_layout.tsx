@@ -1,29 +1,47 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { startBackgroundLocationTask } from "@/background/backgroundTasks";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
+import { useDrizzleStudio } from "expo-drizzle-studio-plugin";
+import { Stack } from "expo-router";
+import { openDatabaseSync, SQLiteProvider } from "expo-sqlite";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import migrations from "../drizzle/migrations";
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+const expoDb = openDatabaseSync("db.db");
+
+const db = drizzle(expoDb);
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
+  const { success, error } = useMigrations(db, migrations);
+  if (success) {
+    console.log("Migration successful");
+  }
+  if (error) {
+    console.error("Migration error", error.message);
   }
 
+  useDrizzleStudio(expoDb);
+
+  useEffect(() => {
+    async () => {
+      try {
+        await startBackgroundLocationTask();
+      } catch (error) {
+        console.error("Error starting background location task", error);
+      }
+    };
+  });
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <>
+      <SQLiteProvider databaseName="footsteps">
+        <StatusBar style="light" />
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+        </Stack>
+      </SQLiteProvider>
+    </>
   );
 }
