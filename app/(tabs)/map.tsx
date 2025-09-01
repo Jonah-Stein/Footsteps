@@ -1,57 +1,63 @@
-import { footstep } from "@/types/types";
-import { useSQLiteContext } from "expo-sqlite";
+import { DB_PATH } from "@/constants";
+import * as schema from "@/db/schema";
+import { staypointWithLocation } from "@/types/types";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { openDatabaseSync } from "expo-sqlite";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
+const expoDb = openDatabaseSync(DB_PATH);
+const db = drizzle(expoDb, { schema });
+
+//TODO: need to add options to filter for staypoints within time range (notably days, week, etc.)
+//Might want to make own dedicated stat page for this (could be user page)
 export default function Map() {
-  const [footsteps, setFootsteps] = useState<footstep[]>([]);
-  const dbConnection = useSQLiteContext();
-  // Need to redo this with drizzle
-  // const db = new FootstepsDb(dbConnection);
+  const [staypoints, setStaypoints] = useState<staypointWithLocation[]>([]);
 
-  const seedFootsteps: footstep[] = [
-    {
-      timestamp: 10000,
-      lat: 37.775,
-      lon: -122.4194,
-    },
-    {
-      timestamp: 10020,
-      lat: 37.778,
-      lon: -122.4201,
-    },
-  ];
-
-  // Fetch footsteps from db
+  // Fetch staypoints from db
   useEffect(() => {
-    const getFootsteps = async () => {
-      // Need to redo this with drizzle
-      const data: footstep[] = [];
-      // const data = await db.getFootsteps();
-      // const dbCheck = await db.checkDb();
-      setFootsteps(data);
+    const getStaypoints = async () => {
+      //TODO: need to allow setting to query for staypoints within a certain time range
+      const data = await db.query.staypoints.findMany({
+        with: { location: true },
+      });
+      console.log("fetched the following data: ", data);
+      const dataWithLocation = data
+        .filter(
+          (staypoint) =>
+            staypoint.location?.lat != null && staypoint.location?.lon != null
+        )
+        .map((staypoint) => ({
+          staypoint_id: staypoint.id,
+          start_time: staypoint.start_time,
+          end_time: staypoint.end_time,
+          lat: staypoint.location?.lat ?? 0,
+          lon: staypoint.location?.lon ?? 0,
+          location_name: staypoint.location?.name ?? "N/a",
+        }));
+      setStaypoints(dataWithLocation);
     };
-    getFootsteps();
+    getStaypoints();
   }, []);
 
   return (
     <View style={styles.container}>
       {/* Need to make these lats and longs dynamic */}
-      {footsteps.length > 0 ? (
+      {staypoints.length > 0 ? (
         <MapView
           style={styles.map}
           initialRegion={{
-            latitude: footsteps[0].lat,
-            longitude: footsteps[0].lon,
+            latitude: staypoints[0].lat,
+            longitude: staypoints[0].lon,
             latitudeDelta: 0.01,
             longitudeDelta: 0.01,
           }}
         >
-          {footsteps?.map((footstep) => (
+          {staypoints?.map((staypoint) => (
             <Marker
-              key={footstep.id}
-              coordinate={{ latitude: footstep.lat, longitude: footstep.lon }}
+              key={staypoint.staypoint_id}
+              coordinate={{ latitude: staypoint.lat, longitude: staypoint.lon }}
             />
           ))}
         </MapView>
@@ -62,6 +68,8 @@ export default function Map() {
       )}
       <View style={styles.lowerContainer}>
         <Text>Container for stats</Text>
+        <Text>{staypoints.length} staypoints</Text>
+        {/* TODO: need to find the right stats to show */}
       </View>
     </View>
   );

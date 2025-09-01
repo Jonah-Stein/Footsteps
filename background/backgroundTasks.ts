@@ -1,5 +1,8 @@
 import { BACKGROUND_LOCATION_TASK_NAME } from "@/constants";
+import { trackings } from "@/db/schema";
+import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as Location from "expo-location";
+import { openDatabaseSync } from "expo-sqlite";
 import * as TaskManager from "expo-task-manager";
 
 
@@ -12,16 +15,14 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK_NAME, async({data , error}) => {
     const {locations} = data as {locations: Location.LocationObject[]};
     console.log("locations: ", locations);
     if (locations.length === 0) return;
-    
-    // Need to redo this with drizzle
-    
-    // const dbConnection = await getDb();
-    // const db = new FootstepsDb(dbConnection);
-    // await db.insertTrackings(locations.map((location)=>({
-    //     timestamp: location.timestamp,
-    //     lat: location.coords.latitude,
-    //     lon: location.coords.longitude
-    // })));
+
+    const expoDb = openDatabaseSync("db.db");
+    const db = drizzle(expoDb)
+    await db.insert(trackings).values(locations.map((trackingPoint)=>({
+      timestamp: trackingPoint.timestamp,
+      lat: trackingPoint.coords.latitude,
+      lon: trackingPoint.coords.longitude,
+    })));
 });
 
 export async function startBackgroundLocationTask() {
@@ -33,6 +34,7 @@ export async function startBackgroundLocationTask() {
     if (foregroundStatus !== "granted" || backgroundStatus !== "granted") {
       console.log("Location permissions not granted");
     }
+    console.log("we up and running");
 
     const registered = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK_NAME);
     if (!registered){

@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.jonahstein.footsteps",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["location"]
       }
     },
     "android": {
