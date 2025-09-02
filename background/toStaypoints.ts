@@ -1,4 +1,4 @@
-import { DB_PATH, MAX_STAYPOINT_INACTIVE_INTERVAL } from "@/constants";
+import { DB_PATH } from "@/constants";
 import * as schema from "@/db/schema";
 import { locations, staypoints, trackings } from "@/db/schema";
 import { in_location } from "@/utils/utils";
@@ -53,9 +53,9 @@ export async function convertTrackingsToStaypoints() {
     
     // This could process the first tracking point twice, but not a big deal 
     for (const tracking of tracking_points) {
-      const tooLongSinceRecentStaypoint = tracking.timestamp - currentStaypoint.end_time > MAX_STAYPOINT_INACTIVE_INTERVAL;
+      // const tooLongSinceRecentStaypoint = tracking.timestamp - currentStaypoint.end_time > MAX_STAYPOINT_INACTIVE_INTERVAL;
       const sameLocationAsRecentStaypoint = in_location(tracking.lat, tracking.lon, currentStaypoint.lat, currentStaypoint.lon)
-      if (tooLongSinceRecentStaypoint || !sameLocationAsRecentStaypoint) {
+      if (/*tooLongSinceRecentStaypoint*/ false || !sameLocationAsRecentStaypoint) {
         await uploadStaypoint(currentStaypoint);
         // Make a new staypoint
         currentStaypoint = {
